@@ -9,7 +9,7 @@ class Basket extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['session_id', 'items', 'removed_items'];
+    protected $fillable = ['session_id', 'items', 'removed_items', 'user_id'];
 
     protected $casts = [
         'items' => 'array',

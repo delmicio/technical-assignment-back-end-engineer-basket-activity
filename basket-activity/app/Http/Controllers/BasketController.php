@@ -5,9 +5,31 @@ namespace App\Http\Controllers;
 use App\Http\Requests\BasketRequest;
 use App\Models\Basket;
 use App\Models\Product;
+use App\Services\CsvExportService;
+use App\Services\RemovedItemsFetcher;
+use Illuminate\Http\Request;
 
 class BasketController extends Controller
 {
+    protected $csvExportService;
+    protected $removedItemsFetcher;
+
+    public function __construct(CsvExportService $csvExportService, RemovedItemsFetcher $removedItemsFetcher)
+    {
+        $this->csvExportService = $csvExportService;
+        $this->removedItemsFetcher = $removedItemsFetcher;
+    }
+
+    public function downloadRemovedItemsCsv(Request $request)
+    {
+        $fromDate = $request->input('from');
+        $toDate = $request->input('to');
+
+        $removedItems = $this->removedItemsFetcher->getRemovedItems($fromDate, $toDate);
+
+        $this->csvExportService->export($removedItems);
+    }
+
     public function index()
     {
         $basket = $this->getOrCreateBasket();
@@ -45,7 +67,11 @@ class BasketController extends Controller
 
     private function getOrCreateBasket()
     {
-        return Basket::firstOrCreate(['session_id' => session()->getId()]);
+        $basket = Basket::firstOrNew(['session_id' => session()->getId()]);
+        $basket->user_id = $basket->user_id ?? auth()->id();
+        $basket->save();
+
+        return $basket;
     }
 
     private function findProduct($productId)
