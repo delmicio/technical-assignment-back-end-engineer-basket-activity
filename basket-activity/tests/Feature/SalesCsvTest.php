@@ -80,7 +80,6 @@ class SalesCsvTest extends TestCase
     {
         return Basket::create([
             'user_id' => User::factory()->create()->id,  // Each basket has its own user
-            'session_id' => 'session' . $daysAgo,  // Unique session ID for each test
             'items' => [],
             'removed_items' => [['product_id' => $product->id, 'name' => $product->name]],
             'updated_at' => Carbon::now()->subDays($daysAgo),  // Specify when the product was removed

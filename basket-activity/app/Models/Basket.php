@@ -15,4 +15,12 @@ class Basket extends Model
         'items' => 'array',
         'removed_items' => 'array',
     ];
+
+    /**
+     * Get the user that owns the basket.
+     */
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
 }

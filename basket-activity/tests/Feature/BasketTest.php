@@ -11,14 +11,12 @@ class BasketTest extends TestCase
 {
     use RefreshDatabase;
 
-    protected $user;
 
     // Set up the test environment
     protected function setUp(): void
     {
         parent::setUp();
         $this->user = User::factory()->create();
-        $this->actingAs($this->user);  // Authenticate the user for all tests
     }
 
     /** @test */
@@ -27,7 +25,10 @@ class BasketTest extends TestCase
         $product = Product::factory()->create();
 
         // Act: Add a product to the basket
-        $response = $this->postJson('/api/basket', ['product_id' => $product->id]);
+        $response = $this->postJson('/api/basket', [
+            'user_id' => $this->user->id,
+            'product_id' => $product->id
+        ]);
 
         // Assert: Check the response and basket state
         $response->assertStatus(200)
@@ -37,7 +38,7 @@ class BasketTest extends TestCase
                 ]
             ]);
 
-        $this->assertBasketContains([$product->id]);
+        $this->assertBasketContains([$product->id], $this->user->id);
     }
 
     /** @test */
@@ -46,10 +47,13 @@ class BasketTest extends TestCase
         $product = Product::factory()->create();
 
         // Arrange: Add a product to the basket
-        $this->postJson('/api/basket', ['product_id' => $product->id]);
+        $this->postJson('/api/basket', [
+            'user_id' => $this->user->id,
+            'product_id' => $product->id
+        ]);
 
         // Act: Remove the product from the basket
-        $response = $this->deleteJson("/api/basket/{$product->id}");
+        $response = $this->deleteJson("/api/basket/{$this->user->id}/{$product->id}");
 
         // Assert: Check the response and removed items state
         $response->assertStatus(200)
@@ -59,8 +63,8 @@ class BasketTest extends TestCase
                 ]
             ]);
 
-        $this->assertBasketIsEmpty();
-        $this->assertRemovedItemsContain([$product->id]);
+        $this->assertBasketIsEmpty($this->user->id);
+        $this->assertRemovedItemsContain([$product->id], $this->user->id);
     }
 
     /** @test */
@@ -69,28 +73,25 @@ class BasketTest extends TestCase
         $product = Product::factory()->create();
 
         // Arrange: Add and remove a product from the basket
-        $this->postJson('/api/basket', ['product_id' => $product->id]);
-        $this->deleteJson("/api/basket/{$product->id}");
+        $this->postJson('/api/basket', [
+            'user_id' => $this->user->id,
+            'product_id' => $product->id
+        ]);
+        $this->deleteJson("/api/basket/{$this->user->id}/{$product->id}");
 
-        // Act: Fetch the removed items
-        $response = $this->getJson('/api/basket/removed-items');
-
-        // Assert: Check the response for the removed product
-        $response->assertStatus(200)
-            ->assertJsonFragment(['product_id' => $product->id]);
-
-        $this->assertRemovedItemsContain([$product->id]);
+        $this->assertRemovedItemsContain([$product->id], $this->user->id);
     }
 
     /**
      * Helper method to assert basket contains specific products
      *
      * @param array $expectedProductIds
+     * @param int $userId
      * @return void
      */
-    private function assertBasketContains(array $expectedProductIds)
+    private function assertBasketContains(array $expectedProductIds, int $userId): void
     {
-        $response = $this->getJson('/api/basket');
+        $response = $this->getJson("/api/basket?user_id={$userId}");
         $response->assertStatus(200)
             ->assertJson([
                 'items' => array_map(fn($id) => ['product_id' => $id], $expectedProductIds)
@@ -100,27 +101,44 @@ class BasketTest extends TestCase
     /**
      * Helper method to assert basket is empty
      *
+     * @param int $userId
      * @return void
      */
-    private function assertBasketIsEmpty()
+    private function assertBasketIsEmpty(int $userId): void
     {
-        $response = $this->getJson('/api/basket');
+        $response = $this->getJson("/api/basket?user_id={$userId}");
         $response->assertStatus(200)
             ->assertJson(['items' => []]);  // Check that items array is empty
     }
 
     /**
-     * Helper method to assert removed items contain specific products
+     * Helper method to assert removed items contain specific products for a user
      *
      * @param array $expectedProductIds
+     * @param int $userId
      * @return void
      */
-    private function assertRemovedItemsContain(array $expectedProductIds)
+    private function assertRemovedItemsContain(array $expectedProductIds, int $userId): void
     {
         $response = $this->getJson('/api/basket/removed-items');
-        $response->assertStatus(200)
-            ->assertJson([
-                'removed_items' => array_map(fn($id) => ['product_id' => $id], $expectedProductIds)
-            ]);
+
+        // Assert the request was successful
+        $response->assertStatus(200);
+
+        // Get the JSON data from the response
+        $removedItems = collect($response->json('removed_items'));
+
+        // Filter the removed items by user ID and map only the product IDs
+        $filteredItems = $removedItems->filter(function ($item) use ($userId) {
+            return $item['user_id'] === $userId;
+        })->pluck('product_id')->toArray();
+
+        // Assert that all expected product IDs are in the filtered removed items
+        foreach ($expectedProductIds as $expectedProductId) {
+            $this->assertTrue(
+                in_array($expectedProductId, $filteredItems),
+                "Failed asserting that the removed items contain product ID: {$expectedProductId} for user ID: {$userId}"
+            );
+        }
     }
 }
