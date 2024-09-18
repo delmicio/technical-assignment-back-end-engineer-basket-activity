@@ -21,6 +21,11 @@
     </div>
 </div>
 
+<!-- Loading Indicator -->
+<div id="loading-indicator" class="fixed inset-0 flex justify-center items-center bg-gray-100 bg-opacity-75 hidden">
+    <div class="spinner-border animate-spin inline-block w-12 h-12 border-4 rounded-full text-blue-600"></div>
+</div>
+
 <!-- Main Content Section -->
 <div class="flex justify-between p-6 space-x-4">
     <!-- Left Section: List of Users -->
@@ -55,19 +60,29 @@
 </div>
 
 <script>
-    const apiUrl = '/api';
+    const apiUrl = '/api/v1'; // Updated to v1 version
     let selectedUserId = null;
+
+    // Show and hide loading indicator
+    function showLoading() {
+        document.getElementById('loading-indicator').classList.remove('hidden');
+    }
+
+    function hideLoading() {
+        document.getElementById('loading-indicator').classList.add('hidden');
+    }
 
     // Fetch users, products, and removed items on page load
     document.addEventListener('DOMContentLoaded', function () {
-        fetchUsers();
-        fetchProducts();
-        fetchRemovedItems();
+        showLoading();
+        fetchUsers().then(hideLoading);
+        fetchProducts().then(hideLoading);
+        fetchRemovedItems().then(hideLoading);
     });
 
     // Fetch users and set the first user as the default selected user
     function fetchUsers() {
-        fetch('/api/users')
+        return fetch(`${apiUrl}/users`)
             .then(response => response.json())
             .then(users => {
                 const userList = document.getElementById('user-list');
@@ -92,13 +107,14 @@
     // Select user and fetch their basket
     function selectUser(userId) {
         selectedUserId = userId;
-        fetchBasket(userId);
-        fetchProducts();
+        showLoading();
+        fetchBasket(userId).then(hideLoading);
+        fetchProducts().then(hideLoading);
     }
 
     // Fetch basket items for the selected user
     function fetchBasket(userId) {
-        fetch(`${apiUrl}/basket?user_id=${userId}`)
+        return fetch(`${apiUrl}/baskets?user_id=${userId}`)
             .then(response => response.json())
             .then(data => {
                 const basketList = document.getElementById('basket-list');
@@ -123,7 +139,7 @@
 
     // Fetch available products to add to the basket
     function fetchProducts() {
-        fetch(`${apiUrl}/products`)
+        return fetch(`${apiUrl}/products`)
             .then(response => response.json())
             .then(products => {
                 const productList = document.getElementById('product-list');
@@ -144,7 +160,8 @@
 
     // Add a product to the selected user's basket (using user_id)
     function addToBasket(productId, userId) {
-        fetch(`${apiUrl}/basket`, {
+        showLoading();
+        fetch(`${apiUrl}/baskets`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -153,27 +170,28 @@
             body: JSON.stringify({product_id: productId, user_id: userId})
         })
             .then(() => {
-                fetchBasket(userId); // Refresh basket after adding item
+                fetchBasket(userId).then(hideLoading); // Refresh basket after adding item
             });
     }
 
     // Remove a product from the selected user's basket (using user_id)
     function removeFromBasket(productId, userId) {
-        fetch(`${apiUrl}/basket/${userId}/${productId}`, {
-            method: 'DELETE',
+        showLoading();
+        fetch(`${apiUrl}/baskets/${userId}/products/${productId}`, {
+            method: 'PATCH',
             headers: {
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
             }
         })
             .then(() => {
-                fetchBasket(userId); // Refresh basket after removing item
-                fetchRemovedItems(); // Refresh removed items
+                fetchBasket(userId).then(hideLoading); // Refresh basket after removing item
+                fetchRemovedItems().then(hideLoading); // Refresh removed items
             });
     }
 
     // Fetch removed items for all users
     function fetchRemovedItems() {
-        fetch(`${apiUrl}/basket/removed-items`)
+        return fetch(`${apiUrl}/removed-items`)
             .then(response => response.json())
             .then(data => {
                 const removedItemsList = document.getElementById('removed-items-list');
@@ -191,7 +209,7 @@
     function downloadCsv() {
         const fromDate = document.getElementById('fromDate').value;
         const toDate = document.getElementById('toDate').value;
-        let url = `${apiUrl}/sales/removed-items-csv`;
+        let url = `${apiUrl}/removed-items/export-csv`;
 
         if (fromDate || toDate) {
             url += `?from=${fromDate}&to=${toDate}`;

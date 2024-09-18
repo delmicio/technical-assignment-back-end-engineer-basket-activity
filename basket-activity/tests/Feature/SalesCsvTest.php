@@ -21,7 +21,7 @@ class SalesCsvTest extends TestCase
         $this->createBasketWithRemovedItem($product, 3);
 
         // Act: Download and capture CSV content
-        $csvContent = $this->getCapturedCsv('/api/sales/removed-items-csv');
+        $csvContent = $this->getCapturedCsv('/api/v1/removed-items/export-csv');
 
         // Assert: Check the CSV content
         $this->assertCsvContains($csvContent, ['Product 1']);
@@ -43,7 +43,7 @@ class SalesCsvTest extends TestCase
         $queryParams = http_build_query(['from' => $fromDate, 'to' => $toDate]);
 
         // Act: Download and capture CSV content within custom date range
-        $csvContent = $this->getCapturedCsv("/api/sales/removed-items-csv?$queryParams");
+        $csvContent = $this->getCapturedCsv("/api/v1/removed-items/export-csv?$queryParams");
 
         // Assert: Check that both products are in the CSV
         $this->assertCsvContains($csvContent, ['Product 1', 'Product 2']);
@@ -57,7 +57,7 @@ class SalesCsvTest extends TestCase
         $basket = $this->createBasketWithRemovedItem($product, 3);  // Removed 3 days ago
 
         // Act: Download and capture CSV content
-        $csvContent = $this->getCapturedCsv('/api/sales/removed-items-csv');
+        $csvContent = $this->getCapturedCsv('/api/v1/removed-items/export-csv');
 
         // Assert: Check the CSV structure and content
         $csvRows = array_map('str_getcsv', explode("\n", trim($csvContent)));

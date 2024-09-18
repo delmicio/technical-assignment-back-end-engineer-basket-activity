@@ -1,0 +1,188 @@
+openapi: 3.0.0
+info:
+  title: Basket API
+  version: 1.0.0
+  description: API to manage user baskets, products, and removed items.
+servers:
+  - url: http://localhost/v1
+    description: Local development server
+
+paths:
+  /users:
+    get:
+      summary: Get all users
+      tags: [ Users ]
+      responses:
+        200:
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+        500:
+          description: Server error
+
+  /baskets:
+    get:
+      summary: Get basket items for a user
+      tags: [ Baskets ]
+      parameters:
+        - in: query
+          name: user_id
+          schema:
+            type: integer
+          required: true
+          description: The ID of the user to retrieve basket items for
+      responses:
+        200:
+          description: List of basket items
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Product'
+        404:
+          description: User not found
+        500:
+          description: Server error
+
+    post:
+      summary: Add product to the basket
+      tags: [ Baskets ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                product_id:
+                  type: integer
+                user_id:
+                  type: integer
+      responses:
+        200:
+          description: Product added to basket
+        422:
+          description: Validation error
+        500:
+          description: Server error
+
+  /baskets/{user_id}/products/{product_id}:
+    patch:
+      summary: Remove product from a user's basket
+      tags: [ Baskets ]
+      parameters:
+        - in: path
+          name: user_id
+          schema:
+            type: integer
+          required: true
+          description: The ID of the user
+        - in: path
+          name: product_id
+          schema:
+            type: integer
+          required: true
+          description: The ID of the product to remove
+      responses:
+        200:
+          description: Product removed from basket
+        404:
+          description: Product or user not found
+        500:
+          description: Server error
+
+  /removed-items:
+    get:
+      summary: Get removed items from all baskets
+      tags: [ Baskets ]
+      responses:
+        200:
+          description: List of removed items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RemovedItem'
+        500:
+          description: Server error
+
+  /removed-items/export-csv:
+    get:
+      summary: Download CSV of removed items
+      tags: [ Baskets ]
+      parameters:
+        - in: query
+          name: start_date
+          schema:
+            type: string
+            format: date
+          description: Start date for filtering removed items
+        - in: query
+          name: end_date
+          schema:
+            type: string
+            format: date
+          description: End date for filtering removed items
+      responses:
+        200:
+          description: CSV file download
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
+        500:
+          description: Server error
+
+  /products:
+    get:
+      summary: Get all products
+      tags: [ Products ]
+      responses:
+        200:
+          description: List of products
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Product'
+        500:
+          description: Server error
+
+components:
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+
+    Product:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+
+    RemovedItem:
+      type: object
+      properties:
+        user_id:
+          type: integer
+        product_id:
+          type: integer
+        name:
+          type: string
